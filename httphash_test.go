@@ -1,6 +1,12 @@
 package main
 
 import (
+	"crypto/md5"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -9,7 +15,25 @@ type test struct {
 	hash string
 }
 
+func TestHTTPHashWithMock(t *testing.T) {
+	bodyContent := []byte("test body")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(bodyContent)
+	}))
+	defer ts.Close()
+	client := ts.Client()
+	received, err := urlHash(client, ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := fmt.Sprintf("%x", md5.Sum(bodyContent))
+	if expected != received {
+		t.Fatalf("Expected %s, received %s", expected, received)
+	}
+}
+
 func TestHTTPHash(t *testing.T) {
+	// the boby hashes may bchange in future, so this test may fail
 	testData := []test{
 		{
 			url:  "http://www.iana.org/",
@@ -25,7 +49,7 @@ func TestHTTPHash(t *testing.T) {
 		},
 	}
 	for _, testCase := range testData {
-		res, err := urlHash(testCase.url)
+		res, err := urlHash(http.DefaultClient, testCase.url)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,7 +61,28 @@ func TestHTTPHash(t *testing.T) {
 	}
 }
 
-func ExampleRun() {
-	Run(1, []string{"example.com"})
-	// Output: example.com 84238dfc8092e5d9c0dac8ef93371a07
+func captureOutput(f func()) string {
+	orig := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	f()
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = orig
+	return string(out)
+}
+
+func TestRun(t *testing.T) {
+	bodyContent := []byte("test body")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(bodyContent)
+	}))
+	defer ts.Close()
+	out := captureOutput(func() {
+		Run(1, []string{ts.URL})
+	})
+	expected := fmt.Sprintf("%s %s\n", ts.URL, fmt.Sprintf("%x", md5.Sum(bodyContent)))
+	if out != expected {
+		t.Fatalf("Expected: %s, received %s", expected, out)
+	}
 }

@@ -14,12 +14,14 @@ import (
 
 const (
 	// HTTPprefix is prefix that have to be in the beggining of URL
-	HTTPprefix     = "http://"
+	HTTPprefix = "http://"
+	// HTTPSprefix is prefix that have to be in the beggining of URL
+	HTTPSprefix    = "https://"
 	requestTimeout = 5 * time.Second
 	urlsChanSize   = 100
 )
 
-func urlHash(url string) (string, error) {
+func urlHash(client *http.Client, url string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 	if !strings.HasPrefix(url, HTTPprefix) {
@@ -29,7 +31,7 @@ func urlHash(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -53,11 +55,12 @@ func Run(routines int, args []string) {
 	urls := make(chan string, urlsChanSize)
 	wg := sync.WaitGroup{}
 	wg.Add(routines)
+	client := http.DefaultClient
 	for i := 0; i < routines; i++ {
 		go func() {
 			defer wg.Done()
 			for url := range urls {
-				res, err := urlHash(url)
+				res, err := urlHash(client, url)
 				if err != nil {
 					panic(err)
 				}
