@@ -34,6 +34,7 @@ func TestHTTPHashWithMock(t *testing.T) {
 
 func TestHTTPHash(t *testing.T) {
 	// the boby hashes may bchange in future, so this test may fail
+	t.Skip("unstable")
 	testData := []test{
 		{
 			url:  "http://www.iana.org/",
