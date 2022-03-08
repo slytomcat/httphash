@@ -65,8 +65,6 @@ jobs:
         uses: actions/download-artifact@v2.0.8
         with:
           name: build_artifacts
-      - name: Version
-        run: cat VERSION
       - name: Upload to release assets
         uses: xresloader/upload-to-github-release@v1
         env:
